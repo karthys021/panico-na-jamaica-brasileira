@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPG Medieval Avançado - PNJ BR</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cor-primaria: #8b4513;
+      --cor-secundaria: #654321;
+      --cor-fundo: url('https://img.freepik.com/fotos-premium/textura-de-papel-velho-antigo_47840-948.jpg');
+    }
+    body {
+      background-image: var(--cor-fundo);
+      background-size: cover;
+      font-family: 'MedievalSharp', cursive;
+      color: #3d2b1e;
+      min-height: 100vh;
+    }
+    .container-main {
+      max-width: 800px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 15px solid var(--cor-primaria);
+      border-radius: 20px;
+      padding: 20px;
+      margin: 20px auto;
+      box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    }
+    /* Seção de Perfil do Personagem */
+    .profile-section {
+      border: 2px solid var(--cor-secundaria);
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      background: rgba(255,255,255,0.9);
+    }
+    .profile-section h2 {
+      font-size: 1.8rem;
+      margin-bottom: 15px;
+    }
+    .profile-img {
+      width: 150px;
+      height: 150px;
+      object-fit: cover;
+      border: 3px solid var(--cor-primaria);
+      border-radius: 50%;
+      margin-bottom: 15px;
+    }
+    /* Caixas de atributos, perícias e armas */
+    .attribute-box, .skill-item, .weapon-item {
+      background: rgba(139, 69, 19, 0.1);
+      border: 3px solid var(--cor-primaria);
+      border-radius: 10px;
+      padding: 15px;
+      margin: 10px;
+      position: relative;
+    }
+    .skill-item, .weapon-item {
+      border: 2px solid var(--cor-secundaria);
+      background: rgba(255,255,255,0.8);
+    }
+    .result-box {
+      position: absolute;
+      right: 70px;
+      top: 5px;
+      min-width: 100px;
+      text-align: right;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid var(--cor-secundaria);
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 0.9rem;
+    }
+    .close-btn {
+      cursor: pointer;
+      color: var(--cor-primaria);
+      font-weight: bold;
+      float: right;
+      margin-left: 5px;
+    }
+    input[type="number"],
+    input[type="text"],
+    textarea {
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid var(--cor-primaria);
+      border-radius: 5px;
+      padding: 5px;
+      width: 100%;
+      text-align: center;
+      font-family: 'MedievalSharp', cursive;
+    }
+    .bonus-input {
+      width: 60px;
+      display: inline-block;
+      margin-right: 5px;
+      text-align: center;
+    }
+    /* Botões de dado usando imagem normal */
+    .dice-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .dado-img {
+      width: 40px;
+      height: 40px;
+      transition: transform 1s ease-out;
+    }
+    .spin {
+      transform: rotate(1440deg);
+    }
+    /* Novos estilos para autenticação e campanhas */
+    #auth-container, #campaign-container, #ficha-container {
+      max-width: 800px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 5px solid var(--cor-secundaria);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+  </style>
+
+  <!-- Firebase App (o núcleo) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <!-- Firebase Auth -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <!-- Firebase Storage -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+  <!-- Seção de Autenticação -->
+  <div id="auth-container">
+    <h2 class="text-center">Login / Registro</h2>
+    <div class="mb-3">
+      <input type="email" id="email" class="form-control" placeholder="Digite seu email">
+    </div>
+    <div class="mb-3">
+      <input type="password" id="senha" class="form-control" placeholder="Digite sua senha">
+    </div>
+    <div class="mb-3 text-center">
+      <button id="btn-login" class="btn btn-primary">Login</button>
+      <button id="btn-register" class="btn btn-secondary">Registrar</button>
+      <button id="btn-logout" class="btn btn-danger" style="display:none;">Logout</button>
+    </div>
+    <div id="auth-status" class="text-center text-danger"></div>
+  </div>
+
+  <!-- Seção de Campanhas -->
+  <div id="campaign-container" style="display:none;">
+    <h2 class="text-center">Gerenciar Campanhas</h2>
+    <div class="mb-3">
+      <input type="text" id="campaignName" class="form-control" placeholder="Nome da Campanha">
+    </div>
+    <div class="mb-3">
+      <textarea id="campaignDesc" rows="3" class="form-control" placeholder="Descrição da Campanha"></textarea>
+    </div>
+    <div class="mb-3">
+      <label for="campaignImage" class="form-label">Upload de Mapa/Referência</label>
+      <input type="file" id="campaignImage" class="form-control" accept="image/*">
+    </div>
+    <div class="mb-3 text-center">
+      <button id="btn-create-campaign" class="btn btn-success">Criar Campanha</button>
+    </div>
+    <div id="campaign-status" class="text-center"></div>
+  </div>
+
+  <!-- Seção para salvar Fichas de Personagem -->
+  <div id="ficha-container" style="display:none;">
+    <h2 class="text-center">Salvar Ficha de Personagem</h2>
+    <div class="text-center mb-3">
+      <button id="btn-save-ficha" class="btn btn-warning">Salvar Ficha Atual</button>
+    </div>
+    <div id="ficha-status" class="text-center"></div>
+  </div>
+
+  <!-- Container principal original -->
+  <div class="container-main">
+    <!-- Seção de Perfil do Personagem -->
+    <section class="profile-section">
+      <h2>Perfil do Personagem</h2>
+      <div class="mb-3 text-center">
+        <img id="profilePreview" class="profile-img" src="https://via.placeholder.com/150" alt="Foto do Personagem">
+      </div>
+      <div class="mb-3">
+        <label for="profileImage" class="form-label">Escolha uma foto:</label>
+        <input type="file" id="profileImage" accept="image/*" class="form-control">
+      </div>
+      <div class="mb-3">
+        <label for="characterName" class="form-label">Nome do Personagem:</label>
+        <input type="text" id="characterName" placeholder="Digite o nome do personagem">
+      </div>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label for="characterAge" class="form-label">Idade:</label>
+          <input type="number" id="characterAge" placeholder="Idade">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label for="characterWeight" class="form-label">Peso:</label>
+          <input type="number" id="characterWeight" placeholder="Peso (kg)">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label for="characterLevel" class="form-label">Nível:</label>
+          <input type="number" id="characterLevel" placeholder="Nível">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="physicalCharacteristics" class="form-label">Características Físicas:</label>
+        <textarea id="physicalCharacteristics" rows="2" placeholder="Descreva as características físicas"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="lore" class="form-label">Lore:</label>
+        <textarea id="lore" rows="3" placeholder="Conte a história do personagem"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="inventory" class="form-label">Inventário:</label>
+        <textarea id="inventory" rows="2" placeholder="Itens do personagem"></textarea>
+      </div>
+    </section>
+    
+    <!-- Cabeçalho do Sistema de Rolagem -->
+    <h1 class="text-center mb-4">🏰 RPG Medieval PNJ BR</h1>
+
+    <!-- Atributos Principais -->
+    <div class="row">
+      <!-- Vida -->
+      <div class="col-md-4 attribute-box">
+        <label for="vida">Vitalidade (1d100+100)</label>
+        <input type="number" id="vida" value="150">
+        <button class="dice-btn mt-2" onclick="rolarVida(this)">
+          <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+        </button>
+      </div>
+      <!-- CA -->
+      <div class="col-md-4 attribute-box">
+        <label for="ca">Classe de Armadura (11+Couro)</label>
+        <input type="number" id="ca" value="11" readonly>
+      </div>
+      <!-- Lombra -->
+      <div class="col-md-4 attribute-box">
+        <label for="lombra">Lombra</label>
+        <input type="number" id="lombra" value="100" min="0" max="100">
+      </div>
+    </div>
+
+    <!-- Atributos Secundários -->
+    <div class="row mt-3">
+      <div class="col-md-2 attribute-box">
+        <label for="forca">Força</label>
+        <input type="number" id="forca" value="10">
+        <button class="dice-btn mt-2" onclick="rolarAtributo(this, 'forca')">
+          <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+        </button>
+      </div>
+      <div class="col-md-2 attribute-box">
+        <label for="destreza">Destreza</label>
+        <input type="number" id="destreza" value="10">
+        <button class="dice-btn mt-2" onclick="rolarAtributo(this, 'destreza')">
+          <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+        </button>
+      </div>
+      <div class="col-md-2 attribute-box">
+        <label for="inteligencia">Inteligência</label>
+        <input type="number" id="inteligencia" value="10">
+        <button class="dice-btn mt-2" onclick="rolarAtributo(this, 'inteligencia')">
+          <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+        </button>
+      </div>
+      <div class="col-md-2 attribute-box">
+        <label for="carisma">Carisma</label>
+        <input type="number" id="carisma" value="10">
+        <button class="dice-btn mt-2" onclick="rolarAtributo(this, 'carisma')">
+          <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+        </button>
+      </div>
+      <div class="col-md-2 attribute-box">
+        <label for="couro">Couro</label>
+        <input type="number" id="couro" value="10">
+        <button class="dice-btn mt-2" onclick="rolarAtributo(this, 'couro')">
+          <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+        </button>
+      </div>
+    </div>
+
+    <!-- Perícias -->
+    <div class="row mt-4" id="pericias">
+      <!-- As perícias serão geradas via JavaScript -->
+    </div>
+    
+    <!-- Seção de Armas -->
+    <section class="mt-4">
+      <h2 class="text-center mb-3">Armas</h2>
+      <div class="row" id="armas">
+        <!-- As armas serão geradas via JavaScript -->
+      </div>
+    </section>
+    
+    <!-- Sistema de Áudio -->
+    <audio id="diceSound" src="https://www.soundjay.com/button/sounds/button-35.mp3"></audio>
+  </div>
+
+  <script>
+    // ------------------------- Código Original -------------------------
+    // Preview da foto do personagem
+    document.getElementById('profileImage').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('profilePreview').src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // Dados das Perícias
+    const pericias = [
+      { nome: "Parrudão", atributo: "forca" },
+      { nome: "Courudo", atributo: "forca" },
+      { nome: "Bógue", atributo: "forca" },
+      { nome: "Capela", atributo: "destreza" },
+      { nome: "Tisconde", atributo: "destreza" },
+      { nome: "Robalris", atributo: "destreza" },
+      { nome: "Indagar", atributo: "inteligencia" },
+      { nome: "Atinar", atributo: "inteligencia" },
+      { nome: "Mexiricar", atributo: "inteligencia" },
+      { nome: "Curar", atributo: "inteligencia" },
+      { nome: "Macumba", atributo: "inteligencia" },
+      { nome: "Disdobro", atributo: "carisma" },
+      { nome: "Diplomacia", atributo: "carisma" },
+      { nome: "Nó Cego", atributo: "carisma" },
+      { nome: "Botar Pânico", atributo: "carisma" }
+    ];
+
+    // Dados das Armas
+    const armas = [
+      {
+        nome: "PORRETE DE AÇO FUNDIDO",
+        tipo: "Arma curta distância",
+        peso: "normal (2,5 kg's)",
+        dano: { diceCount: 4, diceFaces: 8, atributo: "forca" },
+        critico: 18
+      },
+      {
+        nome: "CLAVA ESPINHOSA",
+        tipo: "Arma média distância",
+        peso: "Meio Pesado (4 kg's)",
+        dano: { diceCount: 2, diceFaces: 12, atributo: "destreza" },
+        bonus: { diceCount: 1, diceFaces: 4, descricao: "dano de perfuração" },
+        critico: 19
+      },
+      {
+        nome: "MACHADO DE BOMBEIRO",
+        tipo: "Arma curta distância",
+        peso: "Leve",
+        dano: { diceCount: 2, diceFaces: 10, atributo: "forca" },
+        critico: 18
+      },
+      {
+        nome: "ESPADA BANKAI LONGA",
+        tipo: "Arma média distância",
+        peso: "Meio Pesada (4,9 kg's)",
+        dano: { diceCount: 3, diceFaces: 8, atributo: "destreza" },
+        bonus: { diceCount: 3, diceFaces: 6, descricao: "dano de corte, perfuração e infecção" },
+        critico: 18
+      },
+      {
+        nome: "SOCO DE SERRALHERIA",
+        tipo: "Arma corpo a corpo",
+        peso: "Pena (1,2 kg's)",
+        dano: { diceCount: 3, diceFaces: 8, atributo: "forca" },
+        bonus: [
+          { diceCount: 3, diceFaces: 6, descricao: "dano de corte bruto" },
+          { diceCount: 1, diceFaces: 4, descricao: "sangramento" }
+        ],
+        critico: 18
+      },
+      {
+        nome: "ESPADA RASGA - MÃE",
+        tipo: "Arma média distância",
+        peso: "Meio Pesada (3,5 Kg's)",
+        dano: { diceCount: 5, diceFaces: 8, atributo: "destreza" },
+        bonus: [
+          { diceCount: 3, diceFaces: 6, descricao: "dano de corte bruto" },
+          { diceCount: 2, diceFaces: 4, descricao: "perfuração" }
+        ],
+        critico: 18
+      },
+      {
+        nome: "ARCO E FLECHA",
+        tipo: "Arma longa distância",
+        peso: "Leve (1,5 Kg's)",
+        dano: { diceCount: 4, diceFaces: 9, atributo: "destreza" },
+        bonus: { diceCount: 1, diceFaces: 6, descricao: "dano de perfuração" },
+        critico: 17
+      },
+      {
+        nome: "F.A.L = FALCÃO ANTIGOLEVE",
+        tipo: "Arma de fogo de longo alcance",
+        peso: "Médio (6,5 kg's)",
+        munição: "2 tiros (gasta uma ação pra recarregar uma bala)",
+        dano: { diceCount: 2, diceFaces: 20, atributo: "destreza" },
+        bonus: { diceCount: 1, diceFaces: 6, descricao: "dano de perfuração com baioneta" },
+        critico: 19
+      },
+      {
+        nome: "FOICES DA LUA",
+        tipo: "Arma corpo a corpo",
+        peso: "Pena (1,2 kg's)",
+        dano: { diceCount: 4, diceFaces: 6, atributo: "forca" },
+        bonus: { diceCount: 3, diceFaces: 8, descricao: "dano de corte bruto" },
+        bonus2: { diceCount: 1, diceFaces: 4, descricao: "sangramento" },
+        critico: 18
+      }
+    ];
+
+    // Função para rolar um único dado de 'faces' lados
+    function rolarDado(faces) {
+      const audio = document.getElementById('diceSound');
+      audio.currentTime = 0;
+      audio.play();
+      return Math.floor(Math.random() * faces) + 1;
+    }
+
+    // Função para rolar N dados de M faces e retornar a soma
+    function rolarNDados(n, faces) {
+      let total = 0;
+      for(let i = 0; i < n; i++){
+        total += rolarDado(faces);
+      }
+      return total;
+    }
+
+    // Animação do dado (imagem)
+    function animarDado(el) {
+      const img = el.querySelector('.dado-img');
+      img.classList.add('spin');
+      setTimeout(() => {
+        img.classList.remove('spin');
+      }, 1000);
+    }
+
+    // Gerar Perícias
+    function gerarPericias() {
+      const container = document.getElementById('pericias');
+      pericias.forEach(pericia => {
+        const idName = pericia.nome.replace(/ /g, '-');
+        const div = document.createElement('div');
+        div.className = 'col-md-6 skill-item';
+        div.innerHTML = `
+          <div class="row">
+            <div class="col-12">
+              <div class="result-box" id="result-${idName}"></div>
+            </div>
+          </div>
+          <div class="row align-items-center">
+            <div class="col-6">
+              <h5>${pericia.nome}</h5>
+              <small>Atributo: ${pericia.atributo}</small>
+            </div>
+            <div class="col-6 text-end">
+              <input type="number" id="bonus-${idName}" class="bonus-input" value="0" placeholder="+Bônus">
+              <button class="dice-btn" onclick="rolarPericia(this, '${pericia.nome}', '${pericia.atributo}')">
+                <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Rolagem de Perícia: 1d20 + atributo + bônus informado
+    function rolarPericia(el, nomePericia, atributo) {
+      animarDado(el);
+      const bonus = parseInt(document.getElementById(`bonus-${nomePericia.replace(/ /g, '-')}`).value) || 0;
+      const valorAtributo = parseInt(document.getElementById(atributo).value) || 0;
+      const resultado = rolarDado(20);
+      const total = resultado + valorAtributo + bonus;
+      const resultDiv = document.getElementById(`result-${nomePericia.replace(/ /g, '-')}`);
+      resultDiv.innerHTML = `
+        <span class="close-btn" onclick="this.parentElement.innerHTML = '';">&times;</span>
+        <strong>${total}</strong><br>
+        <small>(${resultado} + ${valorAtributo} + ${bonus})</small>
+      `;
+    }
+
+    // Gerar Armas
+    function gerarArmas() {
+      const container = document.getElementById('armas');
+      armas.forEach(arma => {
+        const idName = arma.nome.replace(/ /g, '-');
+        const div = document.createElement('div');
+        div.className = 'col-md-6 weapon-item';
+        let infoExtra = `<small>Tipo: ${arma.tipo}<br>Peso: ${arma.peso}</small>`;
+        if(arma.munição) {
+          infoExtra += `<br><small>Munição: ${arma.munição}</small>`;
+        }
+        let formula = `${arma.dano.diceCount}d${arma.dano.diceFaces} + ${arma.dano.atributo.toUpperCase()}`;
+        if(arma.bonus) {
+          if(Array.isArray(arma.bonus)) {
+            arma.bonus.forEach(b => {
+              formula += ` + ${b.diceCount}d${b.diceFaces}`;
+            });
+          } else {
+            formula += ` + ${arma.bonus.diceCount}d${arma.bonus.diceFaces}`;
+          }
+        }
+        if(arma.bonus2) {
+          formula += ` + ${arma.bonus2.diceCount}d${arma.bonus2.diceFaces}`;
+        }
+        div.innerHTML = `
+          <div class="row">
+            <div class="col-12">
+              <div class="result-box" id="result-${idName}"></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <h5>${arma.nome}</h5>
+              ${infoExtra}
+              <br><small>Dano: ${formula}</small>
+              <br><small>Crítico: ${arma.critico}</small>
+            </div>
+          </div>
+          <div class="row mt-2">
+            <div class="col text-end">
+              <button class="dice-btn" onclick="rolarArma(this, '${arma.nome}')">
+                <img src="https://cdn-icons-png.flaticon.com/512/104/104732.png" class="dado-img" alt="Dado">
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Rolagem de Arma: calcula dano base (rolando N dM), soma o valor do atributo e rola bônus (se houver)
+    function rolarArma(el, nomeArma) {
+      animarDado(el);
+      const arma = armas.find(a => a.nome === nomeArma);
+      if(!arma) return;
+      // Rola dano base
+      let danoBase = rolarNDados(arma.dano.diceCount, arma.dano.diceFaces);
+      // Adiciona o valor do atributo (força ou destreza)
+      const atributoValor = parseInt(document.getElementById(arma.dano.atributo).value) || 0;
+      // Rola bônus, se houver
+      let danoBonus = 0;
+      let bonusDetalhe = '';
+      if(arma.bonus) {
+        if(Array.isArray(arma.bonus)) {
+          arma.bonus.forEach(b => {
+            const valor = rolarNDados(b.diceCount, b.diceFaces);
+            danoBonus += valor;
+            bonusDetalhe += ` + ${valor} (${b.descricao})`;
+          });
+        } else {
+          const valor = rolarNDados(arma.bonus.diceCount, arma.bonus.diceFaces);
+          danoBonus += valor;
+          bonusDetalhe = ` + ${valor} (${arma.bonus.descricao})`;
+        }
+      }
+      if(arma.bonus2) {
+        const valor = rolarNDados(arma.bonus2.diceCount, arma.bonus2.diceFaces);
+        danoBonus += valor;
+        bonusDetalhe += ` + ${valor} (${arma.bonus2.descricao})`;
+      }
+      const total = danoBase + atributoValor + danoBonus;
+      const resultDiv = document.getElementById(`result-${nomeArma.replace(/ /g, '-')}`);
+      resultDiv.innerHTML = `
+        <span class="close-btn" onclick="this.parentElement.innerHTML = '';">&times;</span>
+        <strong>${total}</strong><br>
+        <small>(${danoBase} + ${atributoValor}${bonusDetalhe})</small>
+      `;
+    }
+
+    // Sistema de Vida
+    function rolarVida(el) {
+      animarDado(el);
+      const vida = rolarDado(100) + 100;
+      document.getElementById('vida').value = vida;
+    }
+
+    // Rolagem de Atributos
+    function rolarAtributo(el, atributo) {
+      animarDado(el);
+      const resultado = rolarDado(20);
+      const valorAtributo = parseInt(document.getElementById(atributo).value) || 0;
+      alert(`🎲 ${atributo.toUpperCase()}: ${resultado} + ${valorAtributo} = ${resultado + valorAtributo}`);
+    }
+
+    // Atualizar CA
+    function atualizarCA() {
+      const couro = parseInt(document.getElementById('couro').value) || 0;
+      document.getElementById('ca').value = 11 + couro;
+    }
+
+    document.getElementById('couro').addEventListener('input', atualizarCA);
+
+    // Inicialização
+    function init() {
+      gerarPericias();
+      gerarArmas();
+      atualizarCA();
+    }
+    init();
+
+    // --------------------- Novas Funções com Firebase ---------------------
+    // Configuração do Firebase (substitua pelos seus dados de configuração)
+    const firebaseConfig = {
+      apiKey: "SUA_API_KEY",
+      authDomain: "SEU_AUTH_DOMAIN",
+      projectId: "SEU_PROJECT_ID",
+      storageBucket: "SEU_STORAGE_BUCKET",
+      messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+      appId: "SEU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // Elementos de autenticação
+    const btnLogin = document.getElementById('btn-login');
+    const btnRegister = document.getElementById('btn-register');
+    const btnLogout = document.getElementById('btn-logout');
+    const authStatus = document.getElementById('auth-status');
+
+    // Login
+    btnLogin.addEventListener('click', () => {
+      const email = document.getElementById('email').value;
+      const senha = document.getElementById('senha').value;
+      auth.signInWithEmailAndPassword(email, senha)
+        .then(() => {
+          authStatus.textContent = "Login realizado com sucesso!";
+        })
+        .catch(error => {
+          authStatus.textContent = error.message;
+        });
+    });
+
+    // Registro
+    btnRegister.addEventListener('click', () => {
+      const email = document.getElementById('email').value;
+      const senha = document.getElementById('senha').value;
+      auth.createUserWithEmailAndPassword(email, senha)
+        .then(() => {
+          authStatus.textContent = "Usuário registrado com sucesso!";
+        })
+        .catch(error => {
+          authStatus.textContent = error.message;
+        });
+    });
+
+    // Logout
+    btnLogout.addEventListener('click', () => {
+      auth.signOut().then(() => {
+        authStatus.textContent = "Logout realizado.";
+      });
+    });
+
+    // Monitorar mudanças no estado do usuário
+    auth.onAuthStateChanged(user => {
+      if(user) {
+        btnLogout.style.display = "inline-block";
+        btnLogin.style.display = "none";
+        btnRegister.style.display = "none";
+        // Exibe seções restritas
+        document.getElementById('campaign-container').style.display = "block";
+        document.getElementById('ficha-container').style.display = "block";
+      } else {
+        btnLogout.style.display = "none";
+        btnLogin.style.display = "inline-block";
+        btnRegister.style.display = "inline-block";
+        // Oculta seções restritas
+        document.getElementById('campaign-container').style.display = "none";
+        document.getElementById('ficha-container').style.display = "none";
+      }
+    });
+
+    // Criação de Campanha
+    document.getElementById('btn-create-campaign').addEventListener('click', async () => {
+      const nome = document.getElementById('campaignName').value;
+      const desc = document.getElementById('campaignDesc').value;
+      const fileInput = document.getElementById('campaignImage');
+      const user = auth.currentUser;
+      if(!user) return;
+      let imageUrl = "";
+      if(fileInput.files[0]) {
+        const file = fileInput.files[0];
+        const storageRef = storage.ref().child(`campaigns/${user.uid}/${file.name}`);
+        await storageRef.put(file);
+        imageUrl = await storageRef.getDownloadURL();
+      }
+      // Salva a campanha no Firestore
+      db.collection('campaigns').add({
+        userId: user.uid,
+        nome,
+        descricao: desc,
+        imageUrl,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      })
+      .then(() => {
+        document.getElementById('campaign-status').textContent = "Campanha criada com sucesso!";
+      })
+      .catch(error => {
+        document.getElementById('campaign-status').textContent = error.message;
+      });
+    });
+
+    // Salvar Ficha de Personagem
+    document.getElementById('btn-save-ficha').addEventListener('click', () => {
+      const user = auth.currentUser;
+      if(!user) return;
+      // Coleta dados da ficha (exemplo básico)
+      const ficha = {
+        nome: document.getElementById('characterName').value,
+        idade: document.getElementById('characterAge').value,
+        peso: document.getElementById('characterWeight').value,
+        nivel: document.getElementById('characterLevel').value,
+        caracteristicas: document.getElementById('physicalCharacteristics').value,
+        lore: document.getElementById('lore').value,
+        inventario: document.getElementById('inventory').value,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      db.collection('fichas').doc(user.uid).set(ficha)
+        .then(() => {
+          document.getElementById('ficha-status').textContent = "Ficha salva com sucesso!";
+        })
+        .catch(error => {
+          document.getElementById('ficha-status').textContent = error.message;
+        });
+    });
+  </script>
+</body>
+</html>
